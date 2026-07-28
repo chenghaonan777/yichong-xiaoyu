@@ -1,6 +1,0 @@
-com\exopet\common\config\SwaggerConfig.class
-com\exopet\common\exception\BusinessException.class
-com\exopet\common\exception\GlobalExceptionHandler.class
-com\exopet\common\result\ResultCode.class
-com\exopet\common\constant\GlobalConstants.class
-com\exopet\common\result\Result.class

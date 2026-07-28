@@ -1,7 +1,0 @@
-com\exopet\user\config\MyMetaObjectHandler.class
-com\exopet\user\entity\User.class
-com\exopet\user\mapper\UserMapper.class
-com\exopet\user\service\UserService.class
-com\exopet\user\controller\UserController.class
-com\exopet\user\ExopetUserApplication.class
-com\exopet\user\service\impl\UserServiceImpl.class

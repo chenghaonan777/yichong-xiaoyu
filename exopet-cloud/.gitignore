@@ -1,0 +1,41 @@
+# Maven 构建输出
+target/
+**/target/
+
+# IDE 配置
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# VS Code
+.vscode/
+*.swp
+*.swo
+
+# Claude AI 配置（本地）
+.claude/
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+*.log
+
+# 本地运行时配置（不要提交含密码的配置文件）
+*.local.yml
+*.local.properties
+application-local.yml
+application-local.properties
+
+# 环境变量文件
+.env
+.env.local
+
+# 编译输出
+*.class
+*.jar
+*.war
+
+# 日志
+logs/
+*.log
