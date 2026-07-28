@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.exopet.hospital.mapper.HospitalMapper">
+
+    <resultMap id="BaseResultMap" type="com.exopet.hospital.entity.Hospital">
+        <id     column="id"              property="id"/>
+        <result column="name"            property="name"/>
+        <result column="address"         property="address"/>
+        <result column="latitude"        property="latitude"/>
+        <result column="longitude"       property="longitude"/>
+        <result column="phone"           property="phone"/>
+        <result column="business_hours"  property="businessHours"/>
+        <result column="cover_image"     property="coverImage"/>
+        <result column="images"          property="images"/>
+        <result column="rating"          property="rating"/>
+        <result column="review_count"    property="reviewCount"/>
+        <result column="expertise_tags"  property="expertiseTags"/>
+        <result column="license_image"   property="licenseImage"/>
+        <result column="intro"           property="intro"/>
+        <result column="status"          property="status"/>
+        <result column="created_at"      property="createdAt"/>
+        <result column="updated_at"      property="updatedAt"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, name, address, latitude, longitude, phone, business_hours,
+        cover_image, images, rating, review_count, expertise_tags,
+        license_image, intro, status, created_at, updated_at
+    </sql>
+
+    <!-- ==================== 多条件分页查询 ==================== -->
+    <select id="selectByCondition" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM hospital
+        <where>
+            status = 1
+            <if test="category != null and category != ''">
+                AND JSON_CONTAINS(expertise_tags, #{category})
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    name    LIKE CONCAT('%', #{keyword}, '%')
+                    OR address LIKE CONCAT('%', #{keyword}, '%')
+                    OR intro LIKE CONCAT('%', #{keyword}, '%')
+                )
+            </if>
+        </where>
+        ORDER BY rating DESC, review_count DESC
+    </select>
+
+</mapper>

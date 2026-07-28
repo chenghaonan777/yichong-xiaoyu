@@ -1,0 +1,15 @@
+server:
+  port: 9209
+spring:
+  application:
+    name: exopet-notification
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: exopet-notification-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer

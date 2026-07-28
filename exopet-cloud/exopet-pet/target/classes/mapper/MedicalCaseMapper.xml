@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.exopet.pet.mapper.MedicalCaseMapper">
+
+    <!-- ==================== 结果映射 ==================== -->
+    <resultMap id="BaseResultMap" type="com.exopet.pet.entity.MedicalCase">
+        <id     column="id"              property="id"/>
+        <result column="pet_id"          property="petId"/>
+        <result column="user_id"         property="userId"/>
+        <result column="title"           property="title"/>
+        <result column="visit_date"      property="visitDate"/>
+        <result column="hospital_name"   property="hospitalName"/>
+        <result column="doctor_name"     property="doctorName"/>
+        <result column="symptoms"        property="symptoms"/>
+        <result column="diagnosis"       property="diagnosis"/>
+        <result column="treatment_plan"  property="treatmentPlan"/>
+        <result column="medication"      property="medication"/>
+        <result column="severity"        property="severity"/>
+        <result column="status"          property="status"/>
+        <result column="images"          property="images"/>
+        <result column="follow_up_date"  property="followUpDate"/>
+        <result column="notes"           property="notes"/>
+        <result column="created_at"      property="createdAt"/>
+        <result column="updated_at"      property="updatedAt"/>
+    </resultMap>
+
+    <!-- ==================== 公共SQL片段 ==================== -->
+    <sql id="Base_Column_List">
+        id, pet_id, user_id, title, visit_date,
+        hospital_name, doctor_name, symptoms, diagnosis, treatment_plan,
+        medication, severity, status, images, follow_up_date, notes,
+        created_at, updated_at
+    </sql>
+
+    <!-- ==================== 按宠物ID查询 ==================== -->
+    <select id="selectByPetId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM medical_case
+        WHERE pet_id = #{petId}
+        ORDER BY visit_date DESC, created_at DESC
+    </select>
+
+    <!-- ==================== 按用户ID查询 ==================== -->
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM medical_case
+        WHERE user_id = #{userId}
+        ORDER BY visit_date DESC, created_at DESC
+    </select>
+
+    <!-- ==================== 多条件组合查询 ==================== -->
+    <select id="selectByCondition" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM medical_case
+        <where>
+            <if test="petId != null">
+                AND pet_id = #{petId}
+            </if>
+            <if test="userId != null">
+                AND user_id = #{userId}
+            </if>
+            <if test="severity != null and severity != ''">
+                AND severity = #{severity}
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    title       LIKE CONCAT('%', #{keyword}, '%')
+                    OR symptoms LIKE CONCAT('%', #{keyword}, '%')
+                    OR diagnosis LIKE CONCAT('%', #{keyword}, '%')
+                )
+            </if>
+            <if test="startDate != null">
+                AND visit_date &gt;= #{startDate}
+            </if>
+            <if test="endDate != null">
+                AND visit_date &lt;= #{endDate}
+            </if>
+        </where>
+        ORDER BY visit_date DESC, created_at DESC
+    </select>
+
+</mapper>

@@ -1,0 +1,24 @@
+server:
+  port: 9200
+
+spring:
+  application:
+    name: exopet-auth
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+  datasource:
+    url: jdbc:mysql://localhost:3306/exopet?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+jwt:
+  secret: ${JWT_SECRET:ExoPet2026SecretKeyForJWTTokenGenerationMustBeLongEnough}
+  expire: 604800

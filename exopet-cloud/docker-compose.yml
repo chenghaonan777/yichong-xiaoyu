@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+#  # MySQL
+#  mysql:
+#    image: mysql:8.0
+#    container_name: exopet-mysql
+#    environment:
+#      MYSQL_ROOT_PASSWORD: root
+#      MYSQL_DATABASE: exopet
+#    ports:
+#      - "3306:3306"
+#    volumes:
+#      - mysql-data:/var/lib/mysql
+#      - ../exopet-db.sql:/docker-entrypoint-initdb.d/init.sql
+#    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  # Redis
+  redis:
+    image: redis:7
+    container_name: exopet-redis
+    ports:
+      - "6379:6379"
+
+  # Nacos（使用内嵌存储，不依赖 MySQL）
+  nacos:
+    image: nacos/nacos-server:v2.3.0
+    container_name: exopet-nacos
+    environment:
+      MODE: standalone
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+
+  # Kafka
+  kafka:
+    image: bitnami/kafka:3.6
+    container_name: exopet-kafka
+    environment:
+      KAFKA_CFG_NODE_ID: 0
+      KAFKA_CFG_PROCESS_ROLES: broker,controller
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
+      KAFKA_CFG_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka-data:/bitnami/kafka
+
+volumes:
+  kafka-data:

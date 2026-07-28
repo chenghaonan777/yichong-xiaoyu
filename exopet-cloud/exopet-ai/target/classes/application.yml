@@ -1,0 +1,29 @@
+server:
+  port: 9205
+
+spring:
+  application:
+    name: exopet-ai
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+
+  # Spring AI 配置（默认使用通义千问，可切换）
+  ai:
+    openai:
+      api-key: ${AI_API_KEY:sk-your-key-here}
+      chat:
+        options:
+          model: gpt-4o
+    # 通义千问配置（推荐，国内可用）
+    # dashscope:
+    #   api-key: ${AI_API_KEY}
+    #   chat:
+    #     options:
+    #       model: qwen-vl-plus
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 50MB

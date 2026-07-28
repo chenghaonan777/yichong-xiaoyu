@@ -1,0 +1,3 @@
+com\exopet\gateway\config\CorsConfig.class
+com\exopet\gateway\ExopetGatewayApplication.class
+com\exopet\gateway\filter\AuthGlobalFilter.class

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.exopet.consult.mapper.ConsultMessageMapper">
+
+    <resultMap id="BaseResultMap" type="com.exopet.consult.entity.ConsultMessage">
+        <id     column="id"          property="id"/>
+        <result column="consult_id"  property="consultId"/>
+        <result column="sender_type" property="senderType"/>
+        <result column="sender_id"   property="senderId"/>
+        <result column="msg_type"    property="msgType"/>
+        <result column="content"     property="content"/>
+        <result column="created_at"  property="createdAt"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, consult_id, sender_type, sender_id, msg_type, content, created_at
+    </sql>
+
+    <select id="selectByConsultId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM consult_message
+        WHERE consult_id = #{consultId}
+        ORDER BY created_at ASC
+    </select>
+
+</mapper>

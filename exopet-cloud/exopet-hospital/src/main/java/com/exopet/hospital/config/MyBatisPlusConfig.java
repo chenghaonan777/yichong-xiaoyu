@@ -1,0 +1,33 @@
+package com.exopet.hospital.config;
+
+import com.baomidou.mybatisplus.annotation.DbType;
+import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
+import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * @Author 23278
+ * @Date 2026/7/28 14:35
+ * @PackageName:com.exopet.hospital.config
+ * @ClassName:MyBatisPlusConfig
+ * @Description: TODO
+ * @Version 1.0
+ */
+
+/**
+ * MyBatis-Plus 配置 — 分页插件
+ */
+
+@Configuration
+public class MyBatisPlusConfig {
+    @Bean
+    public MybatisPlusInterceptor mybatisPlusInterceptor(){
+            MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+        PaginationInnerInterceptor pagination = new PaginationInnerInterceptor(DbType.MYSQL);
+        // 单页最大 100 条，防止恶意拖库
+        pagination.setMaxLimit(100L);
+        interceptor.addInnerInterceptor(pagination);
+        return interceptor;
+    }
+}
