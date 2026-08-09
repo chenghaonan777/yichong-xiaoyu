@@ -1,28 +1,18 @@
-version: '3.8'
-
 services:
-#  # MySQL
-#  mysql:
-#    image: mysql:8.0
-#    container_name: exopet-mysql
-#    environment:
-#      MYSQL_ROOT_PASSWORD: root
-#      MYSQL_DATABASE: exopet
-#    ports:
-#      - "3306:3306"
-#    volumes:
-#      - mysql-data:/var/lib/mysql
-#      - ../exopet-db.sql:/docker-entrypoint-initdb.d/init.sql
-#    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+  # ========== 中间件 ==========
 
-  # Redis
+  # Redis（认证中心需要）
   redis:
     image: redis:7
     container_name: exopet-redis
     ports:
       - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
 
-  # Nacos（使用内嵌存储，不依赖 MySQL）
+  # Nacos（服务注册与配置中心）
   nacos:
     image: nacos/nacos-server:v2.3.0
     container_name: exopet-nacos
@@ -31,22 +21,47 @@ services:
     ports:
       - "8848:8848"
       - "9848:9848"
+    restart: unless-stopped
 
-  # Kafka
-  kafka:
-    image: bitnami/kafka:3.6
-    container_name: exopet-kafka
+  # RocketMQ（消息队列，替代原 Kafka）
+  rocketmq-namesrv:
+    image: apache/rocketmq:5.2.0
+    container_name: exopet-rmq-namesrv
     environment:
-      KAFKA_CFG_NODE_ID: 0
-      KAFKA_CFG_PROCESS_ROLES: broker,controller
-      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
-      KAFKA_CFG_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      JAVA_OPT_EXT: "-server -Xms128m -Xmx256m"
     ports:
-      - "9092:9092"
+      - "9876:9876"
+    command: sh mqnamesrv
+    restart: unless-stopped
+
+  rocketmq-broker:
+    image: apache/rocketmq:5.2.0
+    container_name: exopet-rmq-broker
+    environment:
+      JAVA_OPT_EXT: "-server -Xms128m -Xmx256m"
+      NAMESRV_ADDR: rocketmq-namesrv:9876
+    ports:
+      - "10909:10909"
+      - "10911:10911"
+      - "10912:10912"
     volumes:
-      - kafka-data:/bitnami/kafka
+      - ./rocketmq/broker.conf:/etc/rocketmq/broker.conf
+    command: sh mqbroker -c /etc/rocketmq/broker.conf
+    depends_on:
+      - rocketmq-namesrv
+    restart: unless-stopped
+
+  rocketmq-dashboard:
+    image: apacherocketmq/rocketmq-dashboard:latest
+    container_name: exopet-rmq-dashboard
+    environment:
+      JAVA_OPTS: "-Drocketmq.namesrv.addr=rocketmq-namesrv:9876"
+    ports:
+      - "8081:8082"
+    depends_on:
+      - rocketmq-namesrv
+    restart: unless-stopped
 
 volumes:
-  kafka-data:
+  redis-data:
+  rmq-data:

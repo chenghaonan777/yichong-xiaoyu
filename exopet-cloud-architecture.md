@@ -1,7 +1,7 @@
 # ExoPet Cloud — 异宠小愈 后端微服务架构设计
 
 > 本文档为 ExoPet（异宠小愈）后端微服务架构的整体设计说明
-> 技术栈：Spring Cloud Alibaba + Kafka + Redis + Spring AI + MySQL
+> 技术栈：Spring Cloud Alibaba + RocketMQ + Redis + Spring AI + MySQL
 
 ---
 
@@ -25,7 +25,7 @@
 | MyBatis-Plus | - | ORM |
 | MySQL | 8.0+ | 业务数据库（单库多模块） |
 | Redis | 7.x | Token缓存 / 病例缓存 / 分布式锁 |
-| **Kafka** | - | **消息队列（异步解耦 / 削峰）** |
+| **RocketMQ** | - | **消息队列（异步解耦 / 削峰，阿里生态原生集成）** |
 | Spring AI | - | AI诊断 / 情绪分析 / 拍照识宠 |
 | Knife4j | - | API文档 |
 | WebSocket | - | 问诊实时聊天（模拟医生自动回复） |
@@ -48,7 +48,7 @@ exopet-cloud （根项目）
 ├── exopet-pet              宠物服务（宠物档案 / 病例管理 / 健康记录 / 提醒）
 ├── exopet-hospital         医院服务（医院CRUD / 预约 / 评价）
 │
-├── exopet-notification     消息通知服务（Kafka消费者 / 推送通知）
+├── exopet-notification     消息通知服务（RocketMQ消费者 / 推送通知）
 │
 └── exopet-monitor          监控中心（Spring Boot Admin）
 ```
@@ -61,14 +61,14 @@ exopet-cloud （根项目）
                     ┌───────────────┼───────────────┐
                     │               │               │
                     ▼               ▼               ▼
-                 Redis 缓存    Kafka 消息队列   MySQL 数据库
+                 Redis 缓存    RocketMQ 消息队列   MySQL 数据库
 ```
 
 ---
 
 ## 四、中间件
 
-### 4.1 Kafka Topics 设计
+### 4.1 RocketMQ 消息设计（替代原 Kafka）
 
 | Topic | 生产者 | 消费者 | 用途 |
 |-------|--------|--------|------|
@@ -150,7 +150,7 @@ exopet-docker/
 ├── mysql/                    # MySQL 8.0
 ├── redis/                    # Redis 7
 ├── nacos/                    # Nacos Server
-├── kafka/                    # Kafka (KRaft模式)
+├── rocketmq/                 # RocketMQ NameServer + Broker + Dashboard
 ├── services/                 # 各微服务 Dockerfile
 └── .env                      # 环境变量
 ```
@@ -162,21 +162,21 @@ exopet-docker/
 ```
 D:\xiangmu\yichong-xiaoyu\
 ├── exopet-cloud-architecture.md   ← 本文档
-├── exopet-db.sql                  ← 完整数据库脚本（16张表）
+├── exopet-cloud-issues.md         ← 面试考点 + 问题记录
 │
 ├── exopet-mobile/                 ← 前端（Vue 3 + Vant 4 + Axios + WebSocket）
 │
-└── exopet-cloud/                  ← 后端（已完成 5/9 业务模块）
+└── exopet-cloud/                  ← 后端（已完成 6/7 业务模块）
     ├── pom.xml                    ← 聚合 POM（10个子模块）
     ├── exopet-gateway/            ← 网关（JWT鉴权 + Redis降级 + CORS）
     ├── exopet-auth/               ← 认证（JWT签发 + 登录）
     ├── exopet-common/             ← 公共模块（统一返回 / 全局异常 / ResultCode）
     ├── exopet-user/               ← ✅ 用户服务（接口+impl + XML mapper）
     ├── exopet-consult/            ← ✅ 问诊服务（4张表 + WebSocket实时通讯）
-    ├── exopet-ai/                 ← ⏳ 骨架（Controller已建，待补Service/落库）
+    ├── exopet-ai/                 ← ✅ AI诊断服务（Controller + Service + 对话流 + 落库 + Sentinel限流）
     ├── exopet-pet/                ← ✅ 宠物服务（4张表 + XML mapper + CRUD全套）
     ├── exopet-hospital/           ← ✅ 医院服务（3张表 + XML mapper + CRUD全套）
-    ├── exopet-notification/       ← ❌ 空壳（仅application.yml）
+    ├── exopet-notification/       ← ✅ 通知服务（RocketMQ消费者 + WebSocket推送 + 通知API）
     └── exopet-monitor/            ← ❌ 空壳（仅application.yml）
 ```
 
@@ -202,6 +202,7 @@ D:\xiangmu\yichong-xiaoyu\
 | 情绪分析 | `/mood-analysis` | exopet-ai | `/api/ai/**` |
 | 对话框(WebSocket) | `/dialog` | exopet-consult | `/consult/**` + `ws://localhost:9204/ws/consult` |
 | 问题反馈 | `/feedback` | exopet-user | `/user/**` |
+| 通知中心 | `/notification` | exopet-notification | `/notification/**` + `ws://localhost:9209/ws/notification` |
 
 ### 8.2 完整API接口清单
 
@@ -223,18 +224,20 @@ D:\xiangmu\yichong-xiaoyu\
 | POST | `/user/address` | 新增地址 | `Address` JSON | `200` |
 | POST | `/user/feedback` | 提交反馈 | `{content, images}` | `200` |
 
-#### 问诊服务 — `exopet-consult`（✅ 已完成）
+#### 问诊服务 — `exopet-consult`（✅ 已完成 + RocketMQ通知推送）
 
 | 方法 | 路径 | 说明 | 请求/参数 | 响应 |
 |------|------|------|-----------|------|
 | GET | `/consult/doctor/list` | 医生列表（启用+评分排序） | - | `Doctor[]` |
 | GET | `/consult/doctor/{id}` | 医生详情 | `id` | `Doctor` |
-| POST | `/consult/order` | 发起问诊 | `{doctorId, type, petId}` | `ConsultOrder` |
+| POST | `/consult/order` | **发起问诊**（自动生成订单号+发通知） | `{doctorId, type, petId}` | `ConsultOrder` |
 | GET | `/consult/order/list/{userId}` | 用户问诊记录 | `userId` | `ConsultOrder[]` |
 | GET | `/consult/order/{orderNo}` | 按单号查询问诊单 | `orderNo` | `ConsultOrder` |
+| PUT | `/consult/order/{id}` | 更新问诊单 | `ConsultOrder` JSON | `200` |
+| PUT | `/consult/order/{id}/status` | 更新状态（自动发通知） | `{status}` | `200` |
 | POST | `/consult/message` | 发送消息 | `{consultId, senderType, content}` | `ConsultMessage` |
 | GET | `/consult/message/list/{consultId}` | 消息列表 | `consultId` | `ConsultMessage[]` |
-| POST | `/consult/review` | 评价医生 | `{consultId, doctorId, rating}` | `DoctorReview` |
+| POST | `/consult/review` | 评价医生（1-5星校验） | `{consultId, doctorId, rating}` | `DoctorReview` |
 | WS | `/ws/consult` | **实时聊天（即时推送）** | - | 实时消息流 |
 
 #### AI诊断服务 — `exopet-ai`
@@ -274,6 +277,17 @@ D:\xiangmu\yichong-xiaoyu\
 | GET | `/hospital/list` | 附近医院 | `?lat=&lng=&distance=&category=&page=` | `Page<Hospital>` |
 | GET | `/hospital/{id}` | 医院详情 | `id` | `Hospital` |
 | POST | `/hospital/appointment` | 预约就诊 | `{hospitalId, date, timeSlot, petId}` | `200` |
+
+#### 通知服务 — `exopet-notification`（✅ 已完成）
+
+| 方法 | 路径 | 说明 | 请求/参数 | 响应 |
+|------|------|------|-----------|------|
+| GET | `/notification/list/{userId}` | 通知列表（分页+已读筛选） | `userId + ?page&size&isRead` | `IPage<Notification>` |
+| GET | `/notification/unread/{userId}` | 未读通知数 | `userId` | `{count}` |
+| PUT | `/notification/read/{id}` | 标记单条已读 | `id + ?userId=` | `200` |
+| PUT | `/notification/read-all/{userId}` | 全部标记已读 | `userId` | `200` |
+| POST | `/notification/test/{userId}` | 生成测试通知 | `userId` | `Notification` |
+| WS | `/ws/notification` | **实时通知推送** | `ws://...?userId=1` | 实时推送 |
 
 ### 8.3 统一返回格式
 
@@ -332,12 +346,15 @@ Vite 代理配置（`vite.config.js`）：
 
 | 前端页面 | 当前数据源 | 需对接的API | 状态 |
 |---------|-----------|------------|------|
-| Login1 | 直接跳转 | `POST /auth/login` | ❌ Mock |
-| Login2 | 直接跳转 | `POST /auth/login` | ❌ Mock |
+| Login1 | 直接跳转 | `POST /auth/login` | ❌ Mock（后端✅就绪） |
+| Login2 | 直接跳转 | `POST /auth/login` | ❌ Mock（后端✅就绪） |
 | **MyPets** | **后端 API** | `GET /pet/list` + `POST /pet/health-record` | ✅ **已对接** |
 | **SpecialistConsult** | **后端 API** | `GET /consult/doctor/list` + `POST /consult/order` | ✅ **已对接** |
 | **Dialog** | **后端 API** | `GET /consult/order` + WebSocket | ✅ **已对接** |
 | HospitalFinder | `hospitals[]` 硬编码 | `GET /hospital/list` | ❌ Mock（后端✅就绪） |
+| AIConsult | 后端 API | `POST /api/ai/diagnose`（对话式，支持图文） | ✅ **已对接** |
+| MoodAnalysis | 后端 API | `POST /api/ai/mood-analysis`（对话式） | ✅ **已对接** |
+| PetPhotoRecognition | 后端 API | `POST /api/ai/breed-recognize`（对话式） | ✅ **已对接** |
 | 其余页面 | 静态UI | 对应API | ❌ Mock |
 
 ---
@@ -350,10 +367,13 @@ Vite 代理配置（`vite.config.js`）：
 | Day 2 | Auth认证 + Common公共模块 | JWT签发 + 统一返回/异常 | ✅ **已完成** |
 | Day 3 | 用户 + 宠物 服务 | 接口+impl规范 + XML mapper + 分页 | ✅ **已完成** |
 | Day 4 | 问诊服务 + 病例管理 + WebSocket | 医生/问诊/消息/评价 + 实时通讯 | ✅ **已完成** |
-| Day 5 | Spring AI 诊断服务 | AI问诊 + 情绪分析 + 识宠 | ⏳ **Controller已有，待补Service/落库** |
+| Day 5 | Spring AI 诊断服务 | AI问诊 + 情绪分析 + 识宠 + 对话流 + 落库 | ✅ **已完成** |
 | Day 6 | 前端对接（去Mock） | MyPets/Specialist/Dialog 已对接 | ✅ **3个页面已完成** |
 | Day 7 | 医院服务 + 评价系统 | 医院CRUD + 预约 + 评价（3张表） | ✅ **已完成** |
-| Day 8 | Docker Compose + 部署上线 | 可演示项目 | ⏳ **进行中** |
+| Day 8 | Gateway 统一入口 + Nacos注册 | 全服务注册到Nacos，前端走Gateway | ✅ **已完成** |
+| Day 9 | RocketMQ 替换 Kafka + 完善配置 | docker-compose + notification 配置 | ✅ **已完成** |
+| Day 10 | 通知服务 + exopet-monitor | RocketMQ消费者 + WebSocket推送 + 通知API | ✅ **已完成（通知服务）** |
+| Day 11 | 前端对接（医院+AI+通知） | HospitalFinder/MoodAnalysis/AIConsult + 通知中心 | ⏳ **待完成** |
 
 ---
 
@@ -362,16 +382,64 @@ Vite 代理配置（`vite.config.js`）：
 | 面试官问 | 回答 |
 |---------|------|
 | 为什么用微服务？ | "按业务领域拆分为9个独立服务，比如医院服务挂了不影响AI问诊，各服务独立部署独立扩缩容。" |
-| 跨服务调用怎么做？ | "同步调用用 OpenFeign + Nacos 负载均衡，异步用 Kafka 解耦。比如问诊完成后通过 Kafka 异步推送通知。" |
-| 分布式事务？ | "核心链路上用 Seata AT模式保证问诊和病例的最终一致性。非核心场景用 Kafka 消息+本地事务表+重试机制。" |
+| 跨服务调用怎么做？ | "同步调用用 OpenFeign + Nacos 负载均衡，异步用 RocketMQ 解耦。比如问诊完成后通过 RocketMQ 异步推送通知。" |
+| 分布式事务？ | "核心链路上用 Seata AT模式保证问诊和病例的最终一致性。非核心场景用 RocketMQ 事务消息+本地事务表+重试机制。" |
 | 缓存策略？ | "Redis 缓存医生信息、病例数据和 Token。缓存失效采用随机 TTL + 互斥锁双重防止缓存雪崩和击穿。" |
-| AI怎么做？ | "Spring AI 统一封装了多模型调用。目前接通义千问做图片识别和诊断。Prompt 结构化输出 JSON，置信度阈值控制 + 人工兜底。" |
+| AI怎么做？ | "Spring AI 统一封装。目前用硅基流动的视觉模型 Qwen3-VL-8B-Instruct，支持图文输入。对话式诊断流程：用户描述→AI追问→再追问→最终结论。Prompt 结构化输出 JSON。" |
 | 视频怎么实现？ | "音视频媒体流走声网全球网络，不经过我服务器。我后端只做 Token 签发和房间管理。网络差时自动降级图文问诊。" |
 | **网关鉴权怎么做的？** | "Gateway 拦截请求，**优先从 Redis 校验 Token**，Redis 挂了自动**降级为 JWT 本地验签**，保证服务不中断。" |
 | **实时通讯怎么实现的？** | "问诊聊天走 **WebSocket**，消息即时推送，后端存库保存聊天记录。还模拟了2秒后医生自动回复，演示通讯链路。" |
 
 ---
 
+## 十二、本地启动与关闭
+
+### 启动顺序
+
+```bash
+# 1. 启动基础设施（Docker）
+cd D:\xiangmu\yichong-xiaoyu\exopet-cloud
+docker compose up -d          # 全部启动
+docker compose up -d redis    # 只启动 Redis
+
+# 2. 启动后端微服务（在 exopet-cloud 目录下）
+mvn spring-boot:run -pl exopet-auth
+
+# 3. 启动前端（在 exopet-mobile 目录下）
+cd D:\xiangmu\yichong-xiaoyu\exopet-mobile
+npm run dev
+```
+
+### 关闭
+
+```bash
+# 停 Docker 容器（保留数据）
+docker compose stop           # 停止所有
+docker compose stop redis     # 只停 Redis
+
+# 停 Docker 容器并删掉（清数据）
+docker compose down           # 全部删除
+docker compose down redis     # 只删 Redis
+
+# 停后端微服务
+# IDEA 里点红色方块，或终端按 Ctrl+C
+
+# 停前端
+# 终端按 Ctrl+C
+```
+
+### 各服务地址
+
+| 服务 | 地址 |
+|------|------|
+| 前端页面 | http://localhost:3000 |
+| exopet-auth | http://localhost:9200 |
+| Redis | localhost:6379 |
+| Nacos | http://localhost:8848 |
+| RocketMQ | localhost:9876（NameServer） |
+
+---
+
 > **作者：** 程浩男
-> **最后更新：** 2026-07-28
-> **状态：** 后端 5/9 业务模块已完成 + 前端 3 个页面已对接 + WebSocket 实时通讯
+> **最后更新：** 2026-07-30（Day 10 已完成）
+> **状态：** 后端 6/7 业务模块已完成 + 前端 3 个页面已对接 + WebSocket 实时通讯 + RocketMQ 通知推送

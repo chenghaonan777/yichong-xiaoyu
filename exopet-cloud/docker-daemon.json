@@ -1,0 +1,7 @@
+{
+  "registry-mirrors": [
+    "https://dockerhub.timeweb.cloud",
+    "https://docker.m.daocloud.io",
+    "https://mirror.ccs.tencentyun.com"
+  ]
+}

@@ -39,3 +39,6 @@ application-local.properties
 # 日志
 logs/
 *.log
+
+# 敏感配置（AK/SK、数据库密码）
+application-secret*.yml

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.exopet.ai.mapper.AiDiagnosisRecordMapper">
+    <resultMap id="BaseResultMap" type="com.exopet.ai.entity.AiDiagnosisRecord">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="consult_id" property="consultId"/>
+        <result column="breed_type" property="breedType"/>
+        <result column="breed_name" property="breedName"/>
+        <result column="symptoms" property="symptoms"/>
+        <result column="symptom_desc" property="symptomDesc"/>
+        <result column="images" property="images"/>
+        <result column="ai_model" property="aiModel"/>
+        <result column="ai_raw_response" property="aiRawResponse"/>
+        <result column="disease_list" property="diseaseList"/>
+        <result column="care_plan" property="carePlan"/>
+        <result column="confidence" property="confidence"/>
+        <result column="user_feedback" property="userFeedback"/>
+        <result column="duration_ms" property="durationMs"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, user_id, consult_id, breed_type, breed_name, symptoms, symptom_desc,
+          images, ai_model, ai_raw_response, disease_list, care_plan,
+          confidence, user_feedback, duration_ms, created_at
+    </sql>
+
+</mapper>

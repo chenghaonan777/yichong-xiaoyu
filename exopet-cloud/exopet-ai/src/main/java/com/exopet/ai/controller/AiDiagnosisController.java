@@ -1,141 +1,126 @@
 package com.exopet.ai.controller;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.exopet.ai.entity.AiDiagnosisRecord;
+import com.exopet.ai.service.AiDiagnosisService;
 import com.exopet.common.result.Result;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.Data;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.model.Media;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.util.MimeTypeUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Tag(name = "AI诊断服务")
 @RestController
 @RequestMapping("/api/ai")
+@RequiredArgsConstructor
 public class AiDiagnosisController {
 
-    private final ChatClient chatClient;
+    private final AiDiagnosisService aiDiagnosisService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public AiDiagnosisController(ChatClient.Builder builder) {
-        this.chatClient = builder.build();
+    /**
+     * 解析 JSON 格式的对话历史
+     */
+    private List<Map<String, String>> parseHistory(String historyJson) {
+        if (historyJson == null || historyJson.isBlank()) {
+            return Collections.emptyList();
+        }
+        try {
+            return objectMapper.readValue(historyJson,
+                    new TypeReference<List<Map<String, String>>>() {});
+        } catch (Exception e) {
+            log.warn("解析history失败: {}", e.getMessage());
+            return Collections.emptyList();
+        }
     }
 
-    @Operation(summary = "AI问诊")
+    @Operation(summary = "AI问诊（对话式）")
     @PostMapping("/diagnose")
-    public Result<DiagnosisResult> diagnose(
-            @RequestParam("image") MultipartFile image,
+    @SentinelResource(value = "aiDiagnose", blockHandler = "diagnoseBlockHandler", fallback = "diagnoseFallback")
+    public Result<AiDiagnosisRecord> diagnose(
+            @RequestParam(value = "image", required = false) MultipartFile image,
             @RequestParam("breedType") String breedType,
+            @RequestParam("breedName") String breedName,
             @RequestParam("symptoms") String symptoms,
-            @RequestParam(value = "description", required = false) String description) throws IOException {
+            @RequestParam(value = "symptomDesc", required = false) String symptomDesc,
+            @RequestParam(value = "history", required = false) String historyJson,
+            @RequestHeader("userId") Long userId) {
 
-        String prompt = """
-            你是一个资深的异宠兽医。请根据以下信息进行诊断。
-            【宠物类型】%s
-            【症状标签】%s
-            【用户描述】%s
-
-            请以JSON格式返回：
-            {
-                "possibleDiseases": [{"name":"疾病名","probability":0.8,"severity":"低/中/高"}],
-                "carePlan": {"temperature":"温度建议","diet":"饮食建议"},
-                "medicationWarnings": ["用药禁忌提示"]
-            }
-            """.formatted(breedType, symptoms, description != null ? description : "");
-
-        DiagnosisResult result = new DiagnosisResult();
-
-        try {
-            String response = chatClient.prompt()
-                    .messages(new UserMessage(prompt,
-                            List.of(new Media(MimeTypeUtils.IMAGE_PNG,
-                                    new ByteArrayResource(image.getBytes())))))
-                    .call()
-                    .content();
-            result.setRawResponse(response);
-        } catch (Exception e) {
-            log.error("AI诊断调用失败", e);
-            return Result.failed("AI服务暂时不可用，请稍后重试");
-        }
-
+        List<Map<String, String>> history = parseHistory(historyJson);
+        AiDiagnosisRecord result = aiDiagnosisService.diagnose(image, breedType, breedName, symptoms, symptomDesc, userId, history);
         return Result.success(result);
     }
 
-    @Operation(summary = "情绪分析")
+    public Result<AiDiagnosisRecord> diagnoseBlockHandler(
+            MultipartFile image, String breedType, String breedName,
+            String symptoms, String symptomDesc, String historyJson,
+            Long userId, BlockException e) {
+        return Result.failed("AI诊断当前繁忙，请稍后重试");
+    }
+
+    public Result<AiDiagnosisRecord> diagnoseFallback(
+            MultipartFile image, String breedType, String breedName,
+            String symptoms, String symptomDesc, String historyJson,
+            Long userId, Throwable e) {
+        log.error("AI诊断异常", e);
+        return Result.failed("AI服务暂时不可用: " + e.getMessage());
+    }
+
+    @Operation(summary = "情绪分析（对话式，支持图文）")
     @PostMapping("/mood-analysis")
-    public Result<MoodResult> moodAnalysis(@RequestParam("image") MultipartFile image) throws IOException {
+    @SentinelResource(value = "aiMoodAnalysis", blockHandler = "moodAnalysisBlockHandler", fallback = "moodAnalysisFallback")
+    public Result<AiDiagnosisRecord> moodAnalysis(
+            @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam("description") String description,
+            @RequestParam(value = "history", required = false) String historyJson,
+            @RequestHeader("userId") Long userId) {
 
-        String prompt = """
-            你是一个异宠行为学专家。分析这张照片中宠物的情绪状态。
-            以JSON返回：{"mood":"开心/紧张/不适","confidence":0.85,"advice":"建议"}
-            """;
-
-        MoodResult result = new MoodResult();
-
-        try {
-            String response = chatClient.prompt()
-                    .messages(new UserMessage(prompt,
-                            List.of(new Media(MimeTypeUtils.IMAGE_PNG,
-                                    new ByteArrayResource(image.getBytes())))))
-                    .call()
-                    .content();
-            result.setRawResponse(response);
-        } catch (Exception e) {
-            log.error("情绪分析调用失败", e);
-            return Result.failed("AI服务暂时不可用，请稍后重试");
-        }
-
+        List<Map<String, String>> history = parseHistory(historyJson);
+        AiDiagnosisRecord result = aiDiagnosisService.moodAnalysis(image, description, userId, history);
         return Result.success(result);
     }
 
-    @Operation(summary = "拍照识宠")
+    public Result<AiDiagnosisRecord> moodAnalysisBlockHandler(
+            MultipartFile image, String description, String historyJson, Long userId, BlockException e) {
+        return Result.failed("情绪分析当前繁忙");
+    }
+
+    public Result<AiDiagnosisRecord> moodAnalysisFallback(
+            MultipartFile image, String description, String historyJson, Long userId, Throwable e) {
+        return Result.failed("情绪分析暂时不可用");
+    }
+
+    @Operation(summary = "拍照识宠（对话式，支持图文）")
     @PostMapping("/breed-recognize")
-    public Result<BreedResult> breedRecognize(@RequestParam("image") MultipartFile image) throws IOException {
+    @SentinelResource(value = "aiBreedRecognize", blockHandler = "breedRecognizeBlockHandler", fallback = "breedRecognizeFallback")
+    public Result<AiDiagnosisRecord> breedRecognize(
+            @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam("description") String description,
+            @RequestParam(value = "history", required = false) String historyJson,
+            @RequestHeader("userId") Long userId) {
 
-        String prompt = """
-            识别这张照片中的异宠品种。以JSON返回：
-            {"breedName":"品种名","sciName":"学名","description":"品种说明","characteristics":["特征1","特征2"]}
-            """;
-
-        BreedResult result = new BreedResult();
-
-        try {
-            String response = chatClient.prompt()
-                    .messages(new UserMessage(prompt,
-                            List.of(new Media(MimeTypeUtils.IMAGE_PNG,
-                                    new ByteArrayResource(image.getBytes())))))
-                    .call()
-                    .content();
-            result.setRawResponse(response);
-        } catch (Exception e) {
-            log.error("拍照识宠调用失败", e);
-            return Result.failed("AI服务暂时不可用，请稍后重试");
-        }
-
+        List<Map<String, String>> history = parseHistory(historyJson);
+        AiDiagnosisRecord result = aiDiagnosisService.breedRecognize(image, description, userId, history);
         return Result.success(result);
     }
 
-    // ---- 内部DTO ----
-
-    @Data
-    public static class DiagnosisResult {
-        private String rawResponse;
+    public Result<AiDiagnosisRecord> breedRecognizeBlockHandler(
+            MultipartFile image, String description, String historyJson, Long userId, BlockException e) {
+        return Result.failed("识宠当前繁忙");
     }
 
-    @Data
-    public static class MoodResult {
-        private String rawResponse;
-    }
-
-    @Data
-    public static class BreedResult {
-        private String rawResponse;
+    public Result<AiDiagnosisRecord> breedRecognizeFallback(
+            MultipartFile image, String description, String historyJson, Long userId, Throwable e) {
+        return Result.failed("识宠暂时不可用");
     }
 }

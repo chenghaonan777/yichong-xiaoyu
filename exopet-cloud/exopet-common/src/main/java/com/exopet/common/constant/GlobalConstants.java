@@ -16,7 +16,7 @@ public interface GlobalConstants {
     String REDIS_DOCTOR_KEY = "exopet:doctor:";
     String REDIS_CASE_KEY = "exopet:pet:case:";
 
-    // Kafka Topic
+    // RocketMQ Topic（替代原 Kafka）
     String TOPIC_NOTIFICATION_PUSH = "notification-push";
     String TOPIC_CONSULT_REMIND = "consult-remind";
     String TOPIC_PET_HEALTH_REMIND = "pet-health-remind";
