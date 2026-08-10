@@ -2,9 +2,26 @@
 
 垂直异宠领域的一站式医疗服务平台，覆盖 **AI 问诊 → 真人兽医 → 急诊视频 → 健康管理** 完整闭环。基于 Spring Cloud Alibaba 微服务架构 + Spring AI 大模型能力 + Vue 3 移动端。
 
+## 📱 运行界面
+
+<p align="center">
+  <img src="screenshots/screenshot-01.png" width="230" alt="界面 1" />
+  <img src="screenshots/screenshot-02.png" width="230" alt="界面 2" />
+  <img src="screenshots/screenshot-03.png" width="230" alt="界面 3" />
+  <img src="screenshots/screenshot-04.png" width="230" alt="界面 4" />
+  <img src="screenshots/screenshot-05.png" width="230" alt="界面 5" />
+  <img src="screenshots/screenshot-06.png" width="230" alt="界面 6" />
+  <img src="screenshots/screenshot-07.png" width="230" alt="界面 7" />
+  <img src="screenshots/screenshot-08.png" width="230" alt="界面 8" />
+  <img src="screenshots/screenshot-09.png" width="230" alt="界面 9" />
+  <img src="screenshots/screenshot-10.png" width="230" alt="界面 10" />
+  <img src="screenshots/screenshot-11.png" width="230" alt="界面 11" />
+  <img src="screenshots/screenshot-12.png" width="230" alt="界面 12" />
+</p>
+
 ## ✨ 功能特性
 
-- 🤖 **AI 问诊**：Spring AI + 大模型（通义千问 / OpenAI）智能诊断，支持情绪分析与拍照识宠
+- 🤖 **AI 问诊**：Spring AI + 多模态大模型（硅基流动 SiliconFlow · Qwen3-VL），支持智能诊断、情绪分析、拍照识宠
 - 🩺 **真人兽医**：医生管理、问诊下单、WebSocket 实时聊天（含模拟医生自动回复）、评价体系
 - 🏥 **医院服务**：医院信息管理、预约挂号、评价
 - 🐾 **宠物档案**：宠物档案、病例管理、健康记录、日常提醒
@@ -21,7 +38,7 @@
 | 认证 | Spring Security + JWT |
 | 数据层 | MySQL 8 · MyBatis-Plus · Redis 7 |
 | 消息队列 | RocketMQ 5.2 |
-| AI 能力 | Spring AI（通义千问 / OpenAI） |
+| AI 能力 | Spring AI + 硅基流动（SiliconFlow，OpenAI 兼容协议，Qwen3-VL 多模态） |
 | 实时通信 | WebSocket（问诊聊天） |
 | 前端 | Vue 3 · Vant 4 · Pinia · Vue Router · Axios · 高德地图 |
 | 部署 | Docker Compose |
@@ -43,6 +60,8 @@ yichong-xiaoyu/
 │   ├── docker-compose.yml        # 中间件一键部署（Redis/Nacos/RocketMQ）
 │   └── rocketmq/                 # RocketMQ broker 配置
 ├── exopet-frontend/              # 【前端】Vue 3 移动端（Vite 构建）
+├── screenshots/                  # 运行界面截图
+├── photos/                       # 截图原图
 └── exopet.sql                    # 数据库初始化脚本
 ```
 
@@ -53,7 +72,7 @@ yichong-xiaoyu/
                 │
                 ├──► exopet-user          用户/地址
                 ├──► exopet-consult       问诊 + WebSocket 实时聊天
-                ├──► exopet-ai            大模型 AI 诊断（通义千问/OpenAI）
+                ├──► exopet-ai            多模态大模型 AI 诊断（硅基流动）
                 ├──► exopet-pet           宠物档案/病例
                 ├──► exopet-hospital      医院/预约
                 └──► exopet-notification  RocketMQ 异步通知
@@ -101,4 +120,4 @@ npm run dev
 - MySQL 8.0+ / Redis 7 / Nacos 2.x / RocketMQ 5.x（可通过 docker-compose 一键部署）
 - Node.js 18+ / npm
 
-> ⚠️ 敏感配置（阿里云 AK/SK、数据库密码）位于各模块 `application-secret*.yml`（本地文件，已被 .gitignore 排除，不会提交到仓库）。启动前请在本地配置 `AI_API_KEY` 环境变量（Spring AI 使用）。
+> ⚠️ 敏感配置（数据库密码、AI API Key）通过环境变量注入（`DB_PASSWORD` / `AI_API_KEY`），不提交到仓库。启动前请在本地配置 `AI_API_KEY` 环境变量（Spring AI 调用硅基流动使用）。

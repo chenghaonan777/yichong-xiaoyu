@@ -33,3 +33,6 @@ logs/
 # ==================== 临时文件 ====================
 _nul
 vite.config.js.timestamp-*.mjs
+
+# ==================== 截图原图（README 引用 screenshots/ 副本） ====================
+photos/
